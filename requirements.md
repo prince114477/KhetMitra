@@ -1,114 +1,86 @@
 
 # KhetMitra AI — requirements.md
 
-## 0. Context & Goal
-**Theme:** AI for Rural Innovation & Sustainable Systems  
-**Problem Statement:** Build an AI-powered solution that supports rural ecosystems, sustainability, or resource-efficient systems.  
-**Product:** **KhetMitra AI** — An offline-first, multilingual agronomy copilot for smallholder farmers that predicts, advises, and coordinates actions to boost yield, conserve water, reduce input costs, **surface relevant government subsidies/schemes**, and **recommend profitable crop choices**.
+> **Main USP (updated):** KhetMitra AI’s **Crop Decision Engine (CDE)**—powered by an on‑device **GrainDB** (climate • location • soil • prices • costs • sowing windows)—tells farmers **which crop to grow *right now*** for maximum profit and lower risk. **All other features remain** (diagnosis, irrigation/fertilizer planner, schemes, market hints, voice offline, human‑in‑loop), but the *primary* story is **crop choice first**.
 
 ---
 
-## 1. Key Personas
-- **Smallholder Farmer (primary)** — Low connectivity & digital literacy; prefers voice in local language.
-- **FPO/Co-op Lead (secondary)** — Aggregated insights, logistics & market coordination.
-- **Extension Worker / KVK (secondary)** — Triage uncertain cases, close the loop.
-- **Mandi Trader / Buyer (tertiary)** — Demand signals (future phase).
+## 0) Context & Objectives
+- **Theme:** AI for Rural Innovation & Sustainable Systems
+- **Objective:** Improve farmer incomes and national food‑system stability by making **crop selection** decisions data‑driven and localized, while still assisting day‑to‑day agronomy.
+- **Tagline:** *Grow the right crop now; manage the field better—all offline.*
 
 ---
 
-## 2. Functional Requirements (MVP)
-
-### 2.1 Farmer Advisory (Core)
-1. **Pest/Disease Diagnosis (Vision):** Capture leaf/plant photos; on-device classifier returns likely issue + confidence; show remedy (dosage, PHI, PPE) with explainable reasoning.
-2. **Irrigation & Fertilizer Planner:** Weather-aware daily/weekly schedule based on crop, soil, phenology; nudges via voice & WhatsApp; offline heuristics with periodic sync.
-3. **Market & Harvest Hints:** Near-term mandi price bands (nearby eNAM/Agmarknet-linked markets), simple trend indicators, and harvest window suggestions.
-4. **Crop Profitability Advisor:** Personalized, district-level **crop selection** recommendations using cost-of-cultivation baselines, local price trends, soil/irrigation constraints, and risk (rain/pest). Outputs **Top 3 crops** with projected **net margin/acre**, **input budget**, and **risk score**.
-5. **Govt Schemes & Subsidies Finder:** Eligibility engine maps farmer profile (state, district, landholding size, irrigation, crop, ownership/lease, KYC) to Central & State schemes. Provides **step-by-step application**, required documents, local office/portal, and status tracking.
-6. **Voice-first Multilingual UX:** Hindi + local languages; offline TTS/STT; IVR fallback for non-smartphones. Daily 2‑min audio briefing.
-7. **Escalations:** Low‑confidence or high‑risk cases → extension worker console; farmer can upload audio/photo notes; SLA & follow-up reminders.
-
-### 2.2 FPO/Extension Console
-8. **Case Triage:** Queue of escalations with images, location, crop stage; label/annotate to improve models.
-9. **Aggregated Insights:** Heatmaps of pest pressure, irrigation demand, price anomalies (privacy-preserving, no PII).
-10. **Scheme Outreach:** Bulk messages to eligible members for time-bound programs (e.g., PM-KUSUM, PMFBY enrolment windows).
+## 1) Personas
+- **Smallholder Farmer (primary):** Low connectivity; wants a simple, Hindi‑first guide to **choose a crop now** and manage inputs.
+- **FPO/Co‑op Lead (secondary):** Needs aggregate signals (no PII) to coordinate inputs and marketing.
+- **Extension Worker (secondary):** Takes escalations when the app is uncertain; validates tough cases.
+- **Trader/Buyer (tertiary, later):** Looks at aggregated supply signals (post‑hackathon).
 
 ---
 
-## 3. Functional Requirements (Schemes & Subsidies — Detailed)
+## 2) Functional Requirements (MVP)
 
-- **Coverage (Phase‑1):**
-  - **Central:** PM‑KISAN income support; PMFBY crop insurance; PM‑KUSUM solar pumps/RE plants; **Soil Health Card**; **e‑NAM** registration & training links; **Kisan Credit Card (KCC)** with interest subvention; **Agriculture Infrastructure Fund (AIF)** for post‑harvest & infra.
-  - **State (UP initial):** Seed subsidy notifications; plant protection subsidies; training (Million Farmers School); contingency plans; state portals for downloads & forms. 
-- **Eligibility Engine:** Rule graph encodes beneficiary type, landholding thresholds, Aadhaar/eKYC needs, timings (seasonality windows), crop or asset prerequisites, and subsidy caps. Supports dynamic updates via remote config.
-- **Document Checklist & Auto-fill:** Based on scheme, generate checklists (Aadhaar, land records, bank passbook, photos, quotations). Prefill forms where APIs/consents allow.
-- **Application Pathways:** Deep links to official portals, nearest CSC, or assisted filing through FPO. Store **proofs & receipts** in a secure device vault.
-- **Alerts:** Reminders for PMFBY cut‑off dates, PM‑KISAN eKYC status, AIF loan stages, PM‑KUSUM vendor empanelment windows.
+### 2.1 Crop Choice (Primary Flow) — **CDE + GrainDB**
+1. **GrainDB (on‑device subset):** `prices.csv`, `costs.json` (A2+FL/C2), `yields.json`, `soil_profiles.json`, `climate_normals.json`, `sowing_windows.json`; optional `water_availability.json`.
+2. **Scoring:**
+   - **Profitability:** `nowcast_price × expected_yield − A2+FL` (show C2 as conservative view).
+   - **Suitability:** soil/irrigation fit + sowing window.
+   - **Risk:** rainfall variability & simple pest prior → penalty.
+   - **Market Balance Index (MBI):** anti‑herd term to avoid gluts/shortages.
+   - **Score:** weighted sum; output **Top‑3 crops** with margins (₹/acre), risk band, suitability, **MBI note**, and **±10% sensitivity**.
+3. **Q&A:** Ask 3–5 questions (irrigation, risk tolerance, land size, soil profile) before ranking.
+4. **Explainability:** Show a compact “Why” card: price→yield→cost bars, sowing strip, and a one‑line MBI note.
 
----
-
-## 4. Functional Requirements (Crop Profitability — Detailed)
-
-- **Inputs:**
-  - **Prices:** Daily mandi prices (modal/min/max) via Agmarknet/eNAM feeds; cache per crop-market; 12–36‑month history when online.
-  - **Costs:** State & crop‑specific **cost of cultivation** baselines (A2+FL, C2) with inflation update; localized adjustments for irrigation/fertilizer/diesel.
-  - **Agro‑climate:** Soil Health Card data (pH, OC, NPK), rainfall/ET0, growing degree days, sowing window.
-  - **Constraints:** Irrigation type & availability, risk preference, input budget, mechanization.
-- **Model:** Rule‑based feasibility filters → price trend nowcasting (robust median + seasonal component) → expected yield & cost curve → **expected net margin** with conservative risk penalty (weather/pest index).
-- **Outputs:** Ranked crops with **(₹/acre)** margin bands, sensitivity to price ±10%, input plan, sowing window alignment, and marketing tips (eNAM/nearby mandis).
-
----
-
-## 5. Non‑Functional Requirements
-- **Offline‑first:** All critical functions usable offline; periodic sync; deterministic fallbacks.
-- **Performance:** On‑device inference < 1.5s on 2‑3‑year Android devices; app size ≤ 120 MB including models (quantized).
-- **Accessibility:** Voice-first, pictograms, large buttons; color‑safe; supports IVR/SMS.
-- **Localization:** Hindi + 1–2 local languages at launch; pluggable i18n.
-- **Privacy & Security:** Data‑minimization; opt‑in sync; encryption at rest; consented sharing only; audit trails for console actions.
-- **Safety:** Always show PHI, PPE, banned-chemical checks; uncertainty deferral to humans.
+### 2.2 Agronomy Copilot (Still in MVP)
+5. **Pest/Disease Diagnosis (Vision):** Photo → likely issue + confidence; step‑by‑step remedy with dosage, PHI/PPE; escalate if uncertain.
+6. **Irrigation & Fertilizer Planner:** Rule‑based daily/weekly hints (weather‑ready later) by crop/soil/stage; optional voice tips.
+7. **Market & Harvest Hints:** Near‑term mandi price bands (from local CSV) + simple trend cues; sow/harvest window reminders.
+8. **Schemes & Subsidies Finder:** PM‑KISAN, PMFBY, PM‑KUSUM and state items; eligibility, document checklist, steps, deep links/CSC.
+9. **Voice‑first, Multilingual:** Hindi at launch; simple prompts and summaries via device TTS.
+10. **Escalations:** Low‑confidence cases routed to an expert console (stub in demo).
 
 ---
 
-## 6. Data Sources (for implementation)
-- **Prices:** Agmarknet daily price datasets (Open Government Data); eNAM dashboards (for coverage and features).  
-- **Costs:** DES Cost of Cultivation/Production estimates; Agricultural Statistics at a Glance (tables for yields/prices).  
-- **Schemes:** Official portals for PM‑KISAN, PMFBY, PM‑KUSUM, AIF, KCC interest subvention (NABARD); Soil Health Card portal; eNAM; **UP Agriculture** departmental portals for state subsidies & notifications.  
-
-> Exact URLs are listed in *design.md* and wired into data adapters.
-
----
-
-## 7. Constraints & Assumptions
-- Government portals may change endpoints; implement adapter pattern + remote-config for rules.
-- Not all farmers have smartphones; WhatsApp/IVR must deliver essential features.
-- Legal/compliance: align with label compliance for pesticides; no brand promotion; follow official advisories.
+## 3) Non‑Functional Requirements
+- **Offline‑first:** All core flows usable without internet; data bundle ships with the app.
+- **Performance:** Top‑3 crop results in ≤ 1.5s on mid‑range Android.
+- **Size:** ≤ 120 MB (models + GrainDB‑mini + media).
+- **Privacy:** On‑device by default; only anonymous counters (for MBI) if/when sync is enabled.
+- **Safety:** Always show PHI, PPE; block banned substances; conservative defaults when unsure.
 
 ---
 
-## 8. Acceptance Criteria (MVP)
-1. **Diagnosis:** ≥75% top‑3 accuracy on pilot validation set; uncertainty deferral on <60% confidence.
-2. **Water/Fertilizer Planner:** Demonstrated input savings (≥10%) vs control in 1 season (proxy by schedule adherence & rainfall avoidance days).
-3. **Profitability Advisor:** Produces **Top‑3 crop** list with margin bands for at least 10 priority crops per district; matches historical best choice in ≥60% back‑tests.
-4. **Schemes Finder:** Correct eligibility & checklist for the 7 targeted schemes (Central) and ≥5 state items; deep links/CSCs verified.
-5. **Voice UX:** 80% of test users can complete a task with voice (Hindi) within 3 prompts.
-6. **Offline:** All core flows available without network; sync succeeds under 2G.
+## 4) Data Bundle (Demo)
+```
+/demo_data/
+  prices.csv                 # date,crop,mandi,modal_price
+  costs.json                 # { crop: { A2FL, C2 } }
+  yields.json                # { crop: { yield_kg_per_acre } }
+  soil_profiles.json         # [ { name, ph, oc, texture } ]
+  climate_normals.json       # [ { month, rain_mm, tmin, tmax } ]
+  sowing_windows.json        # { crop: { start_mmdd, end_mmdd } }
+  water_availability.json    # optional, by parcel or persona
+  schemes/*.yaml             # pmkisan.yaml, pmfby.yaml, pmkusum_b.yaml (etc.)
+```
 
 ---
 
-## 9. Compliance & Safety
-- **Pesticide safety language** and **PHI** always displayed; block banned substances.
-- **Insurance disclaimers:** PMFBY enrollment/claims routed to official channels; app acts as facilitator, not insurer.
-- **Data protection:** Consent records stored; opt‑out & data delete supported.
+## 5) Acceptance Criteria (judge‑friendly)
+- **Crop Choice:** App completes Q&A → **Top‑3** with ₹/acre margins, risk, suitability, MBI note, and sensitivity in **Airplane mode**.
+- **Diagnosis/Planner/Schemes:** Each opens and renders at least one realistic example with safety & steps.
+- **Explainability:** Each recommendation accompanies a “Why” card (transparent & actionable).
+- **Demo assets:** A 90‑sec screen recording and 5–6 slides summarizing the flows.
 
 ---
 
-## 10. Rollout Plan (12 weeks)
-- **Weeks 1–2:** Partner FPO/KVK; recruit 100–150 farmers; collect farm profiles & soil data; set up IVR.
-- **Weeks 3–6:** Release MVP; run daily briefings; start scheme outreach (PMFBY cut‑off, PM‑KUSUM vendor camps).
-- **Weeks 7–10:** Iterate models; launch crop profitability; validate with receipts & outcomes.
-- **Weeks 11–12:** Measure impact; publish pilot report; prep for state‑wide scale.
+## 6) Build Plan (48–72 hrs)
+- **T–72 to T–48:** GrainDB‑mini, CDE scoring, Crop Q&A → Top‑3 UI.
+- **T–48 to T–24:** Explainability visuals; Hindi TTS; diagnosis stub; schemes YAML; planner rules.
+- **T–24 to T–0:** Polish; local notifications; record demo; finalize slides.
 
 ---
 
-## 11. Future Scope
-- Carbon co‑benefits & practice incentives; credit/insurance facilitation; OR‑Tools for collection routing; cooperative marketplace; satellite indices.
-
+## 7) Roadmap (post‑hackathon)
+- Live feeds (Agmarknet/OGD, weather) and stronger risk models; satellite/pest indices; expert console; policy/FPO dashboards (aggregated); marketplace & logistics; credit/insurance facilitation aligned to chosen crop.
